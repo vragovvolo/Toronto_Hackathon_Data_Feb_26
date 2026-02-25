@@ -1,6 +1,6 @@
 # Toronto Hackathon Data — February 2026
 
-Dataset for the Toronto Databricks Hackathon (February 2026). Contains synthetic restaurant, order, inspection, and review data modeled after the City of Toronto's DineSafe program.
+Dataset for the Toronto Databricks Hackathon (February 2026). Combines real DineSafe inspection data from the City of Toronto with synthetic restaurant, order, menu, and review data.
 
 ## Quick Start
 
@@ -140,6 +140,7 @@ Databricks notebook that automates the full setup:
 
 Works on Databricks free trial — just clone the repo and run.
 
-## License
+## Data Sources
 
-This dataset is synthetic and generated for educational/hackathon purposes.
+- **`inspections.csv`** and **`FOOD_Premises_ON.pdf`** — Real data from the City of Toronto's [DineSafe](https://open.toronto.ca/dataset/dinesafe/) open data program
+- All other files (restaurants, orders, order_items, menu_items, reviews) are synthetic, generated for hackathon purposes
