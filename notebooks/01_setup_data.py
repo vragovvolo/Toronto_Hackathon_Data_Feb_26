@@ -57,6 +57,24 @@ print(f"Schema '{FQ}' and volumes are ready.")
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## Grant access to all workspace users
+
+# COMMAND ----------
+
+try:
+    spark.sql(f"GRANT USE CATALOG ON CATALOG {CATALOG} TO `account users`")
+    spark.sql(f"GRANT USE SCHEMA ON SCHEMA {FQ} TO `account users`")
+    spark.sql(f"GRANT SELECT ON SCHEMA {FQ} TO `account users`")
+    spark.sql(f"GRANT READ VOLUME ON VOLUME {FQ}.dataset TO `account users`")
+    spark.sql(f"GRANT READ VOLUME ON VOLUME {FQ}.documentation TO `account users`")
+    print("Granted read access to all workspace users (account users).")
+except Exception as e:
+    print(f"Note: Could not grant permissions ({e}).")
+    print("You may need to be a catalog owner or admin to grant access.")
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Locate repo data files
 # MAGIC
 # MAGIC Automatically detects the repo root whether you cloned via Repos or
