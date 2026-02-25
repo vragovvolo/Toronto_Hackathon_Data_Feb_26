@@ -62,12 +62,11 @@ print(f"Schema '{FQ}' and volumes are ready.")
 # COMMAND ----------
 
 try:
-    spark.sql(f"GRANT USE CATALOG ON CATALOG {CATALOG} TO `account users`")
-    spark.sql(f"GRANT USE SCHEMA ON SCHEMA {FQ} TO `account users`")
-    spark.sql(f"GRANT SELECT ON SCHEMA {FQ} TO `account users`")
-    spark.sql(f"GRANT READ VOLUME ON VOLUME {FQ}.dataset TO `account users`")
-    spark.sql(f"GRANT READ VOLUME ON VOLUME {FQ}.documentation TO `account users`")
-    print("Granted read access to all workspace users (account users).")
+    spark.sql(f"GRANT ALL PRIVILEGES ON CATALOG {CATALOG} TO `account users`")
+    spark.sql(f"GRANT ALL PRIVILEGES ON SCHEMA {FQ} TO `account users`")
+    spark.sql(f"GRANT ALL PRIVILEGES ON VOLUME {FQ}.dataset TO `account users`")
+    spark.sql(f"GRANT ALL PRIVILEGES ON VOLUME {FQ}.documentation TO `account users`")
+    print("Granted full access to all workspace users (account users).")
 except Exception as e:
     print(f"Note: Could not grant permissions ({e}).")
     print("You may need to be a catalog owner or admin to grant access.")
