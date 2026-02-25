@@ -1,13 +1,31 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # 01 — Upload Data & Create Tables
-# MAGIC Reads CSV files and PDF from the bundle workspace files, uploads them to
-# MAGIC Unity Catalog volumes, and creates Delta tables.
+# MAGIC # 01 — Setup: Create Catalog, Upload Data & Create Tables
+# MAGIC
+# MAGIC This notebook sets up everything you need for the hackathon:
+# MAGIC 1. Creates a **`hackathon`** catalog and schema in Unity Catalog
+# MAGIC 2. Creates volumes for dataset and documentation storage
+# MAGIC 3. Uploads CSV and PDF files from the repo into the volumes
+# MAGIC 4. Creates Delta tables from the CSV files
+# MAGIC
+# MAGIC **Prerequisites:**
+# MAGIC - Databricks workspace (free trial works)
+# MAGIC - Clone or upload this repo into your Databricks workspace via **Repos**
+# MAGIC   (`Workspace > Repos > Add > Git URL`)
+# MAGIC - Run this notebook on any cluster with Unity Catalog access
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "dazana_classic_ws_catalog")
-dbutils.widgets.text("schema", "hackathon")
+# MAGIC %md
+# MAGIC ## Configuration
+# MAGIC
+# MAGIC Change the catalog and schema names below if needed.
+# MAGIC By default this creates `hackathon.toronto_restaurants`.
+
+# COMMAND ----------
+
+dbutils.widgets.text("catalog", "hackathon")
+dbutils.widgets.text("schema", "toronto_restaurants")
 
 CATALOG = dbutils.widgets.get("catalog")
 SCHEMA = dbutils.widgets.get("schema")
@@ -24,14 +42,51 @@ print(f"Target: {FQ}")
 
 try:
     spark.sql(f"CREATE CATALOG IF NOT EXISTS {CATALOG}")
+    print(f"Catalog '{CATALOG}' is ready.")
 except Exception as e:
-    print(f"Note: CREATE CATALOG skipped ({e}). Assuming catalog already exists.")
+    print(f"Note: Could not create catalog ({e}).")
+    print("If you're on a free trial, try using your default catalog instead.")
+    print("Update the 'catalog' widget above and re-run.")
 
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {FQ}")
 spark.sql(f"CREATE VOLUME IF NOT EXISTS {FQ}.dataset")
 spark.sql(f"CREATE VOLUME IF NOT EXISTS {FQ}.documentation")
 
-print("Schema and volumes ready.")
+print(f"Schema '{FQ}' and volumes are ready.")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Locate repo data files
+# MAGIC
+# MAGIC Automatically detects the repo root whether you cloned via Repos or
+# MAGIC imported the notebook manually.
+
+# COMMAND ----------
+
+import os, shutil, glob
+
+# Determine repo root from this notebook's location
+try:
+    nb_path = dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get()
+    repo_root = f"/Workspace{os.path.dirname(os.path.dirname(nb_path))}"
+except Exception:
+    # Fallback: prompt the user
+    raise RuntimeError(
+        "Could not auto-detect repo root. "
+        "Make sure you cloned this repo via Workspace > Repos > Add > Git URL "
+        "and are running the notebook from within the repo."
+    )
+
+csv_dir = os.path.join(repo_root, "data", "csv")
+pdf_dir = os.path.join(repo_root, "data", "pdf")
+
+print(f"Repo root : {repo_root}")
+print(f"CSV dir   : {csv_dir}")
+print(f"PDF dir   : {pdf_dir}")
+
+# Quick sanity check
+assert os.path.isdir(csv_dir), f"CSV directory not found at {csv_dir}"
 
 # COMMAND ----------
 
@@ -40,20 +95,12 @@ print("Schema and volumes ready.")
 
 # COMMAND ----------
 
-import os, shutil, glob
-
-bundle_root = os.path.dirname(os.path.dirname(os.path.abspath(dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get())))
-
-# Workspace files are accessible via /Workspace prefix
-ws_root = f"/Workspace{bundle_root}"
-csv_dir = os.path.join(ws_root, "data", "csv")
-pdf_dir = os.path.join(ws_root, "data", "pdf")
-
 vol_dataset = f"/Volumes/{CATALOG}/{SCHEMA}/dataset"
 vol_docs = f"/Volumes/{CATALOG}/{SCHEMA}/documentation"
 
-csv_files = glob.glob(os.path.join(csv_dir, "*.csv"))
-print(f"Found {len(csv_files)} CSV files in {csv_dir}")
+csv_files = sorted(glob.glob(os.path.join(csv_dir, "*.csv")))
+print(f"Found {len(csv_files)} CSV files")
+
 for src in csv_files:
     fname = os.path.basename(src)
     dst = os.path.join(vol_dataset, fname)
@@ -61,9 +108,14 @@ for src in csv_files:
     print(f"  Copied {fname} -> {dst}")
 
 pdf_src = os.path.join(pdf_dir, "FOOD_Premises_ON.pdf")
-pdf_dst = os.path.join(vol_docs, "FOOD Premises ON.pdf")
-shutil.copy2(pdf_src, pdf_dst)
-print(f"  Copied PDF -> {pdf_dst}")
+if os.path.exists(pdf_src):
+    pdf_dst = os.path.join(vol_docs, "FOOD_Premises_ON.pdf")
+    shutil.copy2(pdf_src, pdf_dst)
+    print(f"  Copied PDF -> {pdf_dst}")
+else:
+    print("  PDF not found, skipping.")
+
+print("\nAll files uploaded to volumes.")
 
 # COMMAND ----------
 
@@ -94,12 +146,14 @@ print("\nAll tables created successfully!")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Verify
+# MAGIC ## Verify tables
 
 # COMMAND ----------
 
+print(f"{'Table':<40} {'Rows':>10}")
+print("-" * 52)
 for table in TABLES:
     cnt = spark.table(f"{FQ}.{table}").count()
-    print(f"  {FQ}.{table}: {cnt:,} rows")
+    print(f"  {FQ}.{table:<30} {cnt:>10,}")
 
-dbutils.jobs.taskValues.set(key="tables_created", value=",".join(TABLES))
+print(f"\nDone! Your data is ready at catalog: {CATALOG}")
